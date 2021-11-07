@@ -36,18 +36,29 @@ def get_user_agent():
     return header
 
 
+def get_user_agent2():
+    header = {
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
+        'Accept-Encoding': 'gzip, deflate',
+        'content-type': 'application/json',
+        'x-requested-with': 'XMLHttpRequest',
+        'Accept-Language': 'zh-CN,zh;q=0.8',
+        'User-Agent': user_agent_list[2]}
+    return header
+
+
 def get(url, cookie=None, header=None, timeout=(10, 30), max_retry_time=3):
     i = 1
     while i <= max_retry_time:
         try:
             if header is None:
-                header = get_user_agent()
+                header = get_user_agent2()
             res = requests.get(url=(url.rstrip()).strip(), cookies=cookie, headers=header, timeout=timeout)
             if res.status_code != 200:
                 return None
             return res
         except Exception as e:
-            print(e)
+            # print(e)
             i += 1
     return None
 

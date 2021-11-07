@@ -33,8 +33,8 @@ class MyMainForm(QMainWindow, Ui_Form):
         # 构建一个计时器
         self.timer = QBasicTimer()
         self.setupUi(self)
-        m3u8_href = 'https://1252524126.vod2.myqcloud.com/9764a7a5vodtransgzp1252524126/91c29aad5285890807164109582/drm/v.f146750.m3u8'
-        self.lineEdit.setText(m3u8_href)
+        # m3u8_href = 'https://1252524126.vod2.myqcloud.com/9764a7a5vodtransgzp1252524126/91c29aad5285890807164109582/drm/v.f146750.m3u8'
+        # self.lineEdit.setText(m3u8_href)
         self.pushButton.clicked.connect(self.getComboxBoxValue)
 
     def getComboxBoxValue(self):
@@ -72,6 +72,8 @@ class MyMainForm(QMainWindow, Ui_Form):
             self.stopTask()
         if no == 202:
             self._running = True
+        elif no == 204:
+            self.clear_alert()
         elif no == 300:
             # 判断是否处于激活状态
             if self.timer.isActive():
@@ -89,6 +91,7 @@ class MyMainForm(QMainWindow, Ui_Form):
 
     def clear_alert(self):
         self.textEdit.setText('')
+        self.lineEdit.setText('')
 
     def timerEvent(self, *args, **kwargs):
         s = round(self.step / self.total * 100)
@@ -126,9 +129,20 @@ class Runtime(QThread):
         super(Runtime, self).__init__()
         if is_spider:
             # 嗅探, 加载嗅探器
-            self.signal.emit(200, "嗅探中...")
             sniffer = Sniffer(href, source)
             [m3u7_href, video_name] = sniffer.start()
+            video_name = video_name.replace('[原创]', '')
+            video_name = video_name.replace(' ', '')
+            video_name = video_name.replace('，', '')
+            video_name = video_name.replace('。', '')
+            video_name = video_name.replace('！', '')
+            video_name = video_name.replace('？', '')
+            video_name = video_name.replace('（', '')
+            video_name = video_name.replace('）', '')
+            video_name = video_name.replace('“', '')
+            video_name = video_name.replace('”', '')
+            video_name = video_name.replace('<imgsrc="images/91.png">', '')
+            video_name = video_name.strip()
             self._m3u8_href = m3u7_href
             self.video_name = video_name
         else:
@@ -142,6 +156,8 @@ class Runtime(QThread):
     # 进行任务操作
     def run(self):
         self.signal.emit(202, '')  # 任务开始的标志
+        if self.video_name is not None:
+            self.signal.emit(200, "嗅探到: %s" % self.video_name)
         # 检查地址是否合法
         if self.check_href() is False:
             self.signal.emit(400, "请输入正确的m3u8地址")
@@ -164,16 +180,17 @@ class Runtime(QThread):
         self.signal.emit(200, "总计%s个视频" % str(len(self.url_list)))
         self.signal.emit(301, str(len(self.url_list)))
         # 拼接正确的下载地址开始下载
-        if self.test_download_url(self.url_list[0]):
-            params = self.get_download_params(head='', dir_name=ts_name, key=self.key_content)
+        if self.test_download_url(self.url_path + self.url_list[0]):
+            params = self.get_download_params(head=self.url_path, dir_name=ts_name, key=self.key_content)
             # 线程池开启线程下载视频
             self.start_download_in_pool(params)
+
         elif self.test_download_url(self.url_host + self.url_list[0]):
             params = self.get_download_params(head=self.url_host, dir_name=ts_name, key=self.key_content)
             # 线程池开启线程下载视频
             self.start_download_in_pool(params)
-        elif self.test_download_url(self.url_path + self.url_list[0]):
-            params = self.get_download_params(head=self.url_path, dir_name=ts_name, key=self.key_content)
+        elif self.test_download_url(self.url_list[0]):
+            params = self.get_download_params(head='', dir_name=ts_name, key=self.key_content)
             # 线程池开启线程下载视频
             self.start_download_in_pool(params)
         else:
@@ -210,7 +227,7 @@ class Runtime(QThread):
 
     # 获取视频下载地址, 该方法可能修改了key_content
     def get_ts_add(self):
-        self.signal.emit(200, "获取ts到下载地址")
+        self.signal.emit(200, "获取到ts下载地址")
         response = request.get(self._m3u8_href)
         if response is not None:
             response = response.text
@@ -232,6 +249,7 @@ class Runtime(QThread):
                 mi = re.findall('#EXT-X-KEY:(.*)\n', response)
                 key = re.findall('URI="(.*)"', mi[0])
                 # self.signal.emit(200, "加密key的链接是: %s" % key[0])
+                print(key)
                 key_url = key[0]
                 key_response = request.get(key_url)
                 self.signal.emit(200, "加密key的值是: %s" % key_response.content)
@@ -293,15 +311,18 @@ class Runtime(QThread):
 
     # 重新下载视频
     def download_fail_file(self):
+        import time
         if len(self.down_fail_list) > 0:
             for info in self.down_fail_list:
                 url = info[0]
                 file_name = info[1]
                 key = info[2]
                 self.signal.emit(200, "正在尝试重新下载%s" % file_name)
-                response = request.get(url=url, max_retry_time=50)
+                response = request.get(url=url, max_retry_time=3)
                 if response is None:
-                    self.signal.emit(200, "%s下载失败，请手动下载:\n%s" % (file_name, url))
+                    # self.signal.emit(200, "%s下载失败，请手动下载:\n%s" % (file_name, url))
+                    time.sleep(1)
+                    self.down_fail_list.append((url, file_name, key))
                     continue
                 cont = response.content
                 if key is not None:
@@ -312,6 +333,9 @@ class Runtime(QThread):
                 with open(file_name, 'wb') as file:
                     file.write(cont)
                 self.signal.emit(300, '')
+                self.down_fail_list.remove(info)
+            if len(self.down_fail_list) > 0:
+                self.download_fail_file()
 
     # 检查视频文件是否全部下载完成
     def check_file(self, dir_name):
@@ -345,18 +369,39 @@ class Runtime(QThread):
                     file.write(i)
         self.signal.emit(200, "正在合并, 请稍后...")
         cmd = "ffmpeg -f concat -safe 0 -i %s -c copy %s.mp4" % (file2, video_name)
+        print(cmd)
         self.signal.emit(200, cmd)
         result = subprocess.run(cmd, shell=True, timeout=100, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         if "Impossible to open" in str(result) or "Invalid" in str(result):
             self.signal.emit(200, "合并失败!")
             return
+        # print(ts_name + '.mp4')
+        # print(video_name + '.mp4')
+        if self.video_name is not None:
+            # os.rename(ts_name + '.mp4', video_name + '.mp4')
+            os.rename(ts_name, video_name)
         os.remove(file1)
         os.remove(file2)
-        if self.video_name is not None:
-            os.rename(ts_name + '.mp4', video_name + '.mp4')
-            os.rename(ts_name, video_name)
+        self.del_file(ts_name)
         self.signal.emit(200, "合并成功!, 新文件是: %s" % video_name)
         self.signal.emit(201, "finished")  # 任务完成
+        self.signal.emit(204, '')
+
+    def del_file(self, filepath):
+        """
+        删除某一目录下的所有文件或文件夹
+        :param filepath: 路径
+        :return:
+        """
+        del_list = os.listdir(filepath)
+        import shutil
+        for f in del_list:
+            file_path = os.path.join(filepath, f)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        shutil.rmtree(filepath)
 
 
 if __name__ == "__main__":

@@ -21,6 +21,7 @@ class Ui_Form(object):
 "\n"
 "height: 20px;")
         self.lineEdit.setObjectName("lineEdit")
+
         self.comboBox = QtWidgets.QComboBox(Form)
         self.comboBox.setGeometry(QtCore.QRect(20, 70, 71, 31))
         self.comboBox.setObjectName("comboBox")
@@ -49,8 +50,8 @@ class Ui_Form(object):
     def retranslateUi(self, Form):
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("Form", "Form"))
-        self.comboBox.setItemText(0, _translate("Form", "aaa"))
-        self.comboBox.setItemText(1, _translate("Form", "91"))
+        self.comboBox.setItemText(0, _translate("Form", "91"))
+        self.comboBox.setItemText(1, _translate("Form", "92"))
         self.pushButton.setText(_translate("Form", "提交"))
-        self.comboBox_2.setItemText(0, _translate("Form", "嗅探"))
-        self.comboBox_2.setItemText(1, _translate("Form", "不嗅探"))
+        self.comboBox_2.setItemText(0, _translate("Form", "不嗅探"))
+        self.comboBox_2.setItemText(1, _translate("Form", "嗅探"))

@@ -4,11 +4,12 @@ import sys
 import os
 import threadpool
 import subprocess
+import urllib
 from Crypto.Cipher import AES
 
-sys.path.append(r"E:\python")
+#sys.path.append(r"E:\python")
 
-from arthur.url import parse as url
+from arthur.url import parse as func_url
 from arthur.request import request
 from arthur.sys import command
 
@@ -32,8 +33,8 @@ class M3(object):
         self.key_content = key_content
         self.video_name = video_name
         self.ts_path = ts_path
-        self.url_host = url.get_host(m3u8_href)
-        self.url_path = url.get_path(m3u8_href)
+        self.url_host = func_url.get_host(m3u8_href)
+        self.url_path = func_url.get_path(m3u8_href)
 
     # 开始运行
     def start(self):
@@ -167,7 +168,7 @@ class M3(object):
     # 设置线程池开始下载
     def start_download_in_pool(self, params):
         print("已确认正确地址，开始下载")
-        pool = threadpool.ThreadPool(10)
+        pool = threadpool.ThreadPool(4)
         thread_requests = threadpool.makeRequests(self.download_to_file, params)
         [pool.putRequest(req) for req in thread_requests]
         pool.wait()
@@ -258,9 +259,20 @@ class M3(object):
 
 
 if __name__ == "__main__":
-    m3u8_href = 'https://1252524126.vod2.myqcloud.com/9764a7a5vodtransgzp1252524126/91c29aad5285890807164109582/drm/v.f146750.m3u8'
+    print('嗅探中...')
+    url = 'https://810.workarea7.live/view_video.php?viewkey=c4c29179057be082375f&page=&viewtype=&category='
+    response = request.get(url=url, max_retry_time=2)
+    a = re.findall('document.write(.*);', response.text)[0]
+    m3u8_href = a[13:-3]
+    m3u8_href = urllib.parse.unquote(m3u8_href)
+    m3u8_href = m3u8_href[13:-31]
+    video_name = re.findall('<h4 class="login_register_header" align=left>(.*)\n', response.text)[0]
+    print('video_name:%s' % video_name)
+    print('m3u8_href:%s' % m3u8_href)
+
+    # m3u8_href = 'https://ccn.killcovid2021.com//m3u8/487808/487808.m3u8?st=7ay9O0aU1ZwwX-1KNtCBOA&e=1625282530'
     key_content = None
-    video_name = '123'
+    # video_name = '爆操巨臀学妹 视觉冲击爆炸'
     ts_path = 'E:\\test\\m3\\'
     m3 = M3(m3u8_href, key_content, video_name, ts_path)
     m3.start()
